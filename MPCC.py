@@ -27,9 +27,14 @@ class MPCC:
         self.Fx_max = Fx_max
         self.N = N
 
-        self.path = np.loadtxt("circular_path.csv", delimiter=",", skiprows=1)  # Skip header
+        self.path = np.loadtxt("text_path.csv", delimiter=",", skiprows=1)  # Skip header
         self.x_path = self.path[:, 0]  # Extract x-coordinates
         self.y_path = self.path[:, 1]  # Extract y-coordinates
+        self.x_path = self.x_path[1:]
+        self.y_path = self.y_path[1:]
+        #print initial point and last point
+        print(f"Initial point: {self.x_path[0]:.2f}, {self.y_path[0]:.2f}")
+        print(f"Final point: {self.x_path[-1]:.2f}, {self.y_path[-1]:.2f}")
         self.path_length = np.sum(np.sqrt(np.diff(self.x_path)**2 + np.diff(self.y_path)**2))
         print(f"Path length: {self.path_length:.2f} m")
 
