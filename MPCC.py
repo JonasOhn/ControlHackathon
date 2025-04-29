@@ -16,7 +16,10 @@ class MPCC:
         vx_target: float = 10.0,
         delta_limits: Tuple[float, float] = (-0.6, 0.6),
         Fx_max: float = 4000,  # Maximum longitudinal force (N)
-        N: int = 20  # Prediction horizon
+        N: int = 20,  # Prediction horizon
+        q_theta: float = 0.1,  # Weight for the progress theta
+        Q: np.array[float, float] = np.array([0.2, 0.2]),
+        R: np.array[float, float] = np.array([0.001, 0.001]),
     ) -> None:
         self.model = model
         self.beta_target = beta_target
@@ -40,38 +43,34 @@ class MPCC:
         # Initial state constraint (vehicle state at time k=0)
         self.opti.subject_to(X[:, 0] == X0_param)
 
+        # initialize errors
+        eps_c = [0 for _ in range(self.N)] # contouring error
+        eps_l = [0 for _ in range(self.N)] # lag 
+
         # Cost function
         cost = 0
         for k in range(self.N):
-            vx = X[3, k]
-            vy = X[4, k]
-            yawrate = X[5, k]
-            delta_s = U[0, k]
-            Fx = U[1, k]
+            progress = X[6, k]  # progress variable
+            progress_x = self.spline_x(progress)
+            progress_y = self.spline_y(progress)
+            x = X[0, k]
+            y = X[1, k]
+            eps_c[k] = np.sin(progress)*(x - progress_x) - np.cos(progress)*(y - progress_y)
+            eps_l[k] = -np.cos(progress)*(x -progress_x) - np.sin(progress)*(y - progress_y)
+            # vx = X[3, k]
+            # vy = X[4, k]
+            # yawrate = X[5, k]
+            # delta_s = U[0, k]
+            # Fx = U[1, k]
 
-            # Calculate the body slip angle (beta)
-            BETA_SMOOTHMAX = 15.0
-            VX_MIN_SMOOTHMAX = 1.0
-            vx_n = (
-                VX_MIN_SMOOTHMAX
-                + ca.log(ca.exp(BETA_SMOOTHMAX * (vx - VX_MIN_SMOOTHMAX)) + VX_MIN_SMOOTHMAX)
-                / BETA_SMOOTHMAX
-            )
-            beta = ca.atan2(vy, vx_n)
+            delta_u = self.U[:2, k] - self.U[:2, k-1] if k > 0 else 0
+            delta_v = self.U[2, k] - self.U[2, k-1] if k > 0 else 0
 
-            cost += 10 * (beta - self.beta_target) ** 2
-            cost += 0.2 * (vx - vx_target) ** 2
-            cost += 0.001 * U[1, k] ** 2
+            # contouring cost
+            cost += [eps_c[k], eps_l[k]].T @ Q @ [eps_c[k], eps_l[k]] - q_theta * progress + [delta_u, delta_v].T @ R @ [delta_u, delta_v]
 
-        # terminal cost only on the last beta
-        vx_n = (
-                VX_MIN_SMOOTHMAX
-                + ca.log(ca.exp(BETA_SMOOTHMAX * (X[3, self.N] - VX_MIN_SMOOTHMAX)) + VX_MIN_SMOOTHMAX)
-                / BETA_SMOOTHMAX
-            )
-        beta_last = ca.atan2(X[4, self.N], vx_n)
-        cost += 100 * (beta_last - self.beta_target) ** 2
-        cost += 0.2 * (X[3, self.N] - vx_target) ** 2
+        # terminal cost only on the 
+        
 
         # Minimize cost
         self.opti.minimize(cost)
