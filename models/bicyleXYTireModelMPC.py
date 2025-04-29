@@ -95,7 +95,8 @@ class BicycleXYTireModelMPC(BaseModel):
         self.I = ca.integrator('I', 'rk', dae, opts)
 
 
-    def animateSimulation(self, x_trajectory, u_trajectory, num_agents:int=1, additional_lines_or_scatters=None):
+    def animateSimulation(self, x_trajectory, u_trajectory, xpath, ypath,
+                          obstacle_center, obstacle_radius, num_agents:int=1, additional_lines_or_scatters=None):
         wheel_long_axis = 0.4
         wheel_short_axis = 0.1
 
@@ -134,6 +135,12 @@ class BicycleXYTireModelMPC(BaseModel):
                     elif value["type"] == "line":
                         ax.plot(value["data"][0], value["data"][1], color=value["color"], linewidth=2, label=key)
             ax.set_title(f"Bicycle Simulation: Step {i+1}")
+
+            ax.plot(xpath, ypath, color="tab:blue", linewidth=2, label="Path")
+
+            # plot the obstacle
+            obstacle = patches.Circle(obstacle_center, obstacle_radius, color="tab:red", alpha=0.5)
+            ax.add_patch(obstacle)
             ax.legend()
             plt.show(block=False)
             plt.pause(1.0 if i == sim_length else 0.3)

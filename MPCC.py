@@ -27,8 +27,8 @@ class MPCC:
         self.Fx_max = Fx_max
         self.N = N
 
-        obstacle_center = np.array([20.0, 0.0])
-        obstacle_radius = 2.0
+        obstacle_center = np.array([5.0, 0.0])
+        obstacle_radius = 1.0
         self.obstacle = {
             "center": obstacle_center,
             "radius": obstacle_radius,
@@ -132,14 +132,14 @@ class MPCC:
             self.opti.subject_to(U[2, k] >= 0)  # progress velocity lower bound
             self.opti.subject_to(U[2, k] <= 2) # progress velocity upper bound
 
-        #     # Obstacle avoidance constraints
-        #     # Calculate the distance to the obstacle
-        #     distance_to_obstacle = ca.sqrt((X[0, k] - self.obstacle["center"][0])**2 + (X[1, k] - self.obstacle["center"][1])**2)
-        #     # Constraint to ensure the vehicle stays outside the obstacle
-        #     self.opti.subject_to(distance_to_obstacle >= self.obstacle["radius"] + 0.5)  # 0.5 m safety margin
-        # # obstacle avoidance constraint for the last state
-        # distance_to_obstacle = ca.sqrt((X[0, self.N] - self.obstacle["center"][0])**2 + (X[1, self.N] - self.obstacle["center"][1])**2)
-        # self.opti.subject_to(distance_to_obstacle >= self.obstacle["radius"] + 0.5)  # 0.5 m safety margin
+            # Obstacle avoidance constraints
+            # Calculate the distance to the obstacle
+            distance_to_obstacle = ca.sqrt((X[0, k] - self.obstacle["center"][0])**2 + (X[1, k] - self.obstacle["center"][1])**2)
+            # Constraint to ensure the vehicle stays outside the obstacle
+            self.opti.subject_to(distance_to_obstacle >= self.obstacle["radius"] + 0.5)  # 0.5 m safety margin
+        # obstacle avoidance constraint for the last state
+        distance_to_obstacle = ca.sqrt((X[0, self.N] - self.obstacle["center"][0])**2 + (X[1, self.N] - self.obstacle["center"][1])**2)
+        self.opti.subject_to(distance_to_obstacle >= self.obstacle["radius"] + 0.5)  # 0.5 m safety margin
 
         # Solver settings
         opts = {"ipopt.print_level": 0, "print_time": 0}

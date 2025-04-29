@@ -32,7 +32,7 @@ def run_simulation() -> None:
     Q = np.diag([1.0, 1.0])
     q_theta = 0.1
     R = np.diag([0.001, 0.001, 0.001])
-    controller = MPCC(model, math.radians(beta_target_deg), vx_target=vx_target, q_theta=q_theta, Q=Q, R=R, N=5)
+    controller = MPCC(model, math.radians(beta_target_deg), vx_target=vx_target, q_theta=q_theta, Q=Q, R=R, N=10)
     controller.plot_path()
 
     # Storage for trajectories
@@ -60,7 +60,8 @@ def run_simulation() -> None:
         x_traj[:, k + 1] = x
         u_traj[:, k] = np.asarray(u).flatten()
 
-    model.animateSimulation(x_traj, u_traj)
+    model.animateSimulation(x_traj, u_traj, controller.x_path, controller.y_path,
+                            controller.obstacle["center"], controller.obstacle["radius"],)
 
     plt.figure(figsize=(10, 5))
     plt.subplot(3, 3, 1)

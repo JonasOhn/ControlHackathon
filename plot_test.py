@@ -54,13 +54,11 @@ def generate_text_path(text: str, font_path: str, font_size: int, image_size: tu
 
     # shift everything such that the first point is at (0, 0)
     path_points -= path_points[0]
-    print(path_points[0])
 
     for point in path_points:
         # delete the next point if it is too close to the current point
-        if np.linalg.norm(point - path_points[0]) < 10 and (point[0] != path_points[0][0] and point[1] != path_points[0][1]):
+        if np.linalg.norm(point - path_points[0]) < 15 and (point[0] != path_points[0][0] and point[1] != path_points[0][1]):
             path_points = np.delete(path_points, np.where(path_points == point)[0][0], axis=0)
-
 
     path_points = np.array(path_points)
     path_points = path_points[1:, :]
@@ -79,12 +77,15 @@ def generate_text_path(text: str, font_path: str, font_size: int, image_size: tu
 
     # smoothen the path using a bspline
     import scipy.interpolate
-    tck, u = scipy.interpolate.splprep(path_points.T, s=0)
-    unew = np.arange(0, 1.0, 0.01)
+    tck, u = scipy.interpolate.splprep(path_points.T, s=100)  # Increase smoothing with s=5
+    unew = np.arange(0, 1.0, 0.001)  # Finer interpolation for smoother path
     out = scipy.interpolate.splev(unew, tck)
     path_points = np.array(out).T
     
-    
+    # remove every n-th point to reduce the number of points
+    n = 10
+    path_points = path_points[::n, :]
+
     return path_points
 
 def animate_car_on_path(path: np.ndarray, speed: float = 0.05, car_marker_size: float = 10.0) -> None:
@@ -109,15 +110,15 @@ def animate_car_on_path(path: np.ndarray, speed: float = 0.05, car_marker_size: 
     ax.grid(True)
     
     # Plot the text path
-    ax.plot(path[:, 0], path[:, 1], color="blue", label="Text Path")
+    ax.plot(path[:, 0], path[:, 1], color="blue", label="Text Path", marker="o", markersize=3)
     
     # Initialize a point for the car
     car, = ax.plot([], [], 'ro', markersize=car_marker_size, label="Car")
     
     # Function to update the car's position in the animation
     def update(frame):
-      car.set_data([path[frame, 0]], [path[frame, 1]])  # Pass as sequences
-      return car,
+        car.set_data([path[frame, 0]], [path[frame, 1]])  # Pass as sequences
+        return car,
     
     # Create the animation
     ani = FuncAnimation(fig, update, frames=len(path), interval=speed * 1000, repeat=False)
@@ -137,7 +138,7 @@ if __name__ == "__main__":
     # Generate the text path
     path = generate_text_path(text, font_path, font_size)
 
-    path = path/10
+    path = path / 10
 
     # Animate the car following the text path
     animate_car_on_path(path, speed=0.5, car_marker_size=10)
