@@ -26,6 +26,24 @@ class MPCC:
         self.delta_min, self.delta_max = delta_limits
         self.Fx_max = Fx_max
         self.N = N
+
+        self.path = np.loadtxt("circular_path.csv", delimiter=",", skiprows=1)  # Skip header
+        self.x_path = self.path[:, 0]  # Extract x-coordinates
+        self.y_path = self.path[:, 1]  # Extract y-coordinates
+        self.path_length = np.sum(np.sqrt(np.diff(self.x_path)**2 + np.diff(self.y_path)**2))
+        print(f"Path length: {self.path_length:.2f} m")
+
+        self.theta_controlpoints = np.linspace(0, self.path_length, len(self.x_path))
+
+        # calculate the angle between contour and the x-axis
+        self.phi_target = np.arctan2(
+            np.gradient(self.y_path), np.gradient(self.x_path)
+        )
+        self.phi_target = np.unwrap(self.phi_target)  # Unwrap the angle to avoid discontinuities
+
+        self.spline_x = ca.interpolant('LUT', 'bspline', [self.theta_controlpoints], self.x_path)
+        self.spline_y = ca.interpolant('LUT', 'bspline', [self.theta_controlpoints], self.y_path)
+        self.phi_target = ca.interpolant('LUT', 'bspline', [self.theta_controlpoints], self.phi_target)
         
         self.opti = ca.Opti()  # Create an Opti object to define the optimization problem
 
@@ -93,6 +111,7 @@ class MPCC:
         opts = {"ipopt.print_level": 0, "print_time": 0}
         self.opti.solver("ipopt", opts)
 
+
     def solve(self, x_now: np.ndarray) -> np.ndarray:
         """Solve the MPC problem to find optimal control input."""
         self.opti.set_value(self.X0_param, x_now)
@@ -100,8 +119,39 @@ class MPCC:
             sol = self.opti.solve()
         except RuntimeError as exc:
             raise RuntimeError("MPC failed to solve: " + str(exc)) from exc
-
-        # Get the first control input from the solution
         u0 = np.asarray(sol.value(self.U)[:, 0]).squeeze()
-
         return u0
+
+
+    def get_path_coordinates(self, progress):
+        x = self.spline_x(progress)
+        y = self.spline_y(progress)
+        return np.array([x, y]).flatten()
+
+
+    def plot_path(self):
+        """
+        Plot the path from the CSV file.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.plot(self.x_path, self.y_path, label="Path", color="b", marker="o", markersize=3)
+        x_path_interp = self.spline_x(self.theta_controlpoints)
+        y_path_interp = self.spline_y(self.theta_controlpoints)
+        plt.plot(x_path_interp, y_path_interp, label="Interpolated Path", color="r")
+        plt.title("Path for Vehicle to Follow")
+        plt.xlabel("x [m]")
+        plt.ylabel("y [m]")
+        plt.legend()
+        plt.axis("equal")
+        plt.grid(True)
+
+        plt.figure(figsize=(8, 8))
+        # plot the target angle depending on progress
+        plt.plot(self.theta_controlpoints, self.phi_target(self.theta_controlpoints), label="Target Angle", color="g")
+        plt.title("Target Angle vs Progress")
+        plt.xlabel("Progress [m]")
+        plt.ylabel("Target Angle [rad]")
+        plt.legend()
+        plt.grid(True)
+
+        plt.show()

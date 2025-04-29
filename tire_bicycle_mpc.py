@@ -9,10 +9,6 @@ import numpy as np
 from MPCC import MPCC
 from models.bicyleXYTireModel import BicycleXYTireModel
 
-class ControlPath:
-    def __init__(self) -> None:
-        self.path = np.zeros((2, 0))  # Initialize an empty path
-    
 def calculate_slip_angles(
     vx: float,
     vy: float,
@@ -32,9 +28,9 @@ def run_simulation() -> None:
     vx_target = 10.0
     beta_target_deg = 10.0
 
-    # Model and controller -------------------------------------------------
     model = BicycleXYTireModel(dt)
     controller = MPCC(model, math.radians(beta_target_deg), vx_target=vx_target)
+    controller.plot_path()
 
     # Storage for trajectories
     nx = model.model_config.nx
