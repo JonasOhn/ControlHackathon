@@ -24,7 +24,7 @@ def calculate_slip_angles(
 
 def run_simulation() -> None:
     dt = 0.1
-    n_sim = 50
+    n_sim = 1000
     vx_target = 10.0
     beta_target_deg = 10.0
 
@@ -32,7 +32,7 @@ def run_simulation() -> None:
     Q = np.diag([1.0, 1.0])
     q_theta = 0.1
     R = np.diag([0.001, 0.001, 0.001])
-    controller = MPCC(model, math.radians(beta_target_deg), vx_target=vx_target, q_theta=q_theta, Q=Q, R=R) 
+    controller = MPCC(model, math.radians(beta_target_deg), vx_target=vx_target, q_theta=q_theta, Q=Q, R=R, N=5)
     controller.plot_path()
 
     # Storage for trajectories
@@ -48,7 +48,11 @@ def run_simulation() -> None:
     # Main simulation loop -------------------------------------------------
     for k in range(n_sim):
         print(f"Step {k + 1}/{n_sim}")
-        u = controller.solve(x)
+        try:
+          u = controller.solve(x)
+        except Exception as e:
+          print(f"Error in optimization: {e}")
+          break
         xf = model.I(x0=ca.DM(x), p=u)["xf"]
         x = np.asarray(xf).flatten()
 
@@ -119,6 +123,9 @@ def run_simulation() -> None:
     plt.tight_layout()
 
     plt.show()
+
+    # save the trajectory
+    np.savez("trajectory.npz", x_traj=x_traj, u_traj=u_traj)
 
 
 if __name__ == "__main__":

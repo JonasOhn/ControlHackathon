@@ -27,11 +27,16 @@ class MPCC:
         self.Fx_max = Fx_max
         self.N = N
 
+        obstacle_center = np.array([20.0, 0.0])
+        obstacle_radius = 2.0
+        self.obstacle = {
+            "center": obstacle_center,
+            "radius": obstacle_radius,
+        }
+
         self.path = np.loadtxt("text_path.csv", delimiter=",", skiprows=1)  # Skip header
         self.x_path = self.path[:, 0]  # Extract x-coordinates
         self.y_path = self.path[:, 1]  # Extract y-coordinates
-        self.x_path = self.x_path[1:]
-        self.y_path = self.y_path[1:]
         #print initial point and last point
         print(f"Initial point: {self.x_path[0]:.2f}, {self.y_path[0]:.2f}")
         print(f"Final point: {self.x_path[-1]:.2f}, {self.y_path[-1]:.2f}")
@@ -125,7 +130,16 @@ class MPCC:
             self.opti.subject_to(U[1, k] >= -self.Fx_max)  # longitudinal force lower bound
             self.opti.subject_to(U[1, k] <= self.Fx_max)   # longitudinal force upper bound
             self.opti.subject_to(U[2, k] >= 0)  # progress velocity lower bound
-            self.opti.subject_to(U[2, k] <= 10) # progress velocity upper bound
+            self.opti.subject_to(U[2, k] <= 2) # progress velocity upper bound
+
+        #     # Obstacle avoidance constraints
+        #     # Calculate the distance to the obstacle
+        #     distance_to_obstacle = ca.sqrt((X[0, k] - self.obstacle["center"][0])**2 + (X[1, k] - self.obstacle["center"][1])**2)
+        #     # Constraint to ensure the vehicle stays outside the obstacle
+        #     self.opti.subject_to(distance_to_obstacle >= self.obstacle["radius"] + 0.5)  # 0.5 m safety margin
+        # # obstacle avoidance constraint for the last state
+        # distance_to_obstacle = ca.sqrt((X[0, self.N] - self.obstacle["center"][0])**2 + (X[1, self.N] - self.obstacle["center"][1])**2)
+        # self.opti.subject_to(distance_to_obstacle >= self.obstacle["radius"] + 0.5)  # 0.5 m safety margin
 
         # Solver settings
         opts = {"ipopt.print_level": 0, "print_time": 0}
