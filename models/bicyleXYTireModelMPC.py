@@ -93,3 +93,49 @@ class BicycleXYTireModelMPC(BaseModel):
         dae = {'x': x, 'p': u, 'ode': x_dot}
         opts = {'tf': self._sampling_time}
         self.I = ca.integrator('I', 'rk', dae, opts)
+
+
+    def animateSimulation(self, x_trajectory, u_trajectory, num_agents:int=1, additional_lines_or_scatters=None):
+        wheel_long_axis = 0.4
+        wheel_short_axis = 0.1
+
+        sim_length = u_trajectory.shape[1]
+        _, ax = plt.subplots()
+
+        nx = self.model_config.nx
+        nu = self.model_config.nu
+
+        for i in range(sim_length+1):
+            ax.set_aspect('equal')
+            # ax.set_xlim(-1, 5)
+            # ax.set_ylim(-1, 5)
+            ax.set_xlabel('px(m)', fontsize=14)
+            ax.set_ylabel('py(m)', fontsize=14)
+
+            for i_agent in range(num_agents):
+                front_x = x_trajectory[i_agent*nx, i] + self.model_config.lf * ca.cos(x_trajectory[i_agent*nx+2, i])
+                front_y = x_trajectory[i_agent*nx+1, i] + self.model_config.lf * ca.sin(x_trajectory[i_agent*nx+2, i])
+                rear_x = x_trajectory[i_agent*nx, i] - self.model_config.lr * ca.cos(x_trajectory[i_agent*nx+2, i])
+                rear_y = x_trajectory[i_agent*nx+1, i] - self.model_config.lr * ca.sin(x_trajectory[i_agent*nx+2, i])
+                ax.plot(x_trajectory[i_agent*nx, :i+1], x_trajectory[i_agent*nx+1, :i+1], color="tab:gray", linewidth=2, zorder=0)
+                ax.scatter(x_trajectory[i_agent*nx, i], x_trajectory[i_agent*nx+1, i], color="tab:gray", s=50, zorder=2)
+                ax.plot([front_x, rear_x], [front_y, rear_y], color="tab:blue", linewidth=3, zorder=1)
+                if i < sim_length:
+                    wheel_f = patches.Ellipse((front_x, front_y), wheel_long_axis, wheel_short_axis, angle=math.degrees(x_trajectory[i_agent*nx+2, i] + u_trajectory[0, i]), color="tab:green", label="Wheels" if i_agent == 0 else None)
+                    wheel_r = patches.Ellipse((rear_x, rear_y), wheel_long_axis, wheel_short_axis, angle=math.degrees(x_trajectory[i_agent*nx+2, i]), color="tab:green")
+                    ax.add_patch(wheel_f)
+                    ax.add_patch(wheel_r)
+                safety_circle = patches.Circle((x_trajectory[i_agent*nx, i], x_trajectory[i_agent*nx+1, i]), self.model_config.safety_radius, color="tab:orange", alpha=0.3)
+                ax.add_patch(safety_circle)
+            if additional_lines_or_scatters is not None:
+                for key, value in additional_lines_or_scatters.items():
+                    if value["type"] == "scatter":
+                        ax.scatter(value["data"][0], value["data"][1], color=value["color"], s=value["s"], label=key, marker=value["marker"])
+                    elif value["type"] == "line":
+                        ax.plot(value["data"][0], value["data"][1], color=value["color"], linewidth=2, label=key)
+            ax.set_title(f"Bicycle Simulation: Step {i+1}")
+            ax.legend()
+            plt.show(block=False)
+            plt.pause(1.0 if i == sim_length else 0.3)
+            ax.clear()
+        return

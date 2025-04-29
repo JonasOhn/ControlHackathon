@@ -7,7 +7,7 @@ import casadi as ca
 import numpy as np
 
 from MPCC import MPCC
-from models.bicyleXYTireModel import BicycleXYTireModel
+from models.bicyleXYTireModelMPC import BicycleXYTireModelMPC
 
 def calculate_slip_angles(
     vx: float,
@@ -28,8 +28,11 @@ def run_simulation() -> None:
     vx_target = 10.0
     beta_target_deg = 10.0
 
-    model = BicycleXYTireModel(dt)
-    controller = MPCC(model, math.radians(beta_target_deg), vx_target=vx_target)
+    model = BicycleXYTireModelMPC(dt)
+    Q = np.diag([1.0, 1.0])
+    q_theta = 0.1
+    R = np.diag([0.001, 0.001, 0.001])
+    controller = MPCC(model, math.radians(beta_target_deg), vx_target=vx_target, q_theta=q_theta, Q=Q, R=R) 
     controller.plot_path()
 
     # Storage for trajectories
@@ -38,8 +41,8 @@ def run_simulation() -> None:
     x_traj = np.zeros((nx, n_sim + 1))
     u_traj = np.zeros((nu, n_sim))
 
-    # Initial pose (px, py, yaw)
-    x = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+    # Initial pose (px, py, yaw, vx, vy, yawrate, theta (progress))
+    x = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0])
     x_traj[:, 0] = x
 
     # Main simulation loop -------------------------------------------------

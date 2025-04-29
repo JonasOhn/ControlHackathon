@@ -18,8 +18,8 @@ class MPCC:
         Fx_max: float = 4000,  # Maximum longitudinal force (N)
         N: int = 20,  # Prediction horizon
         q_theta: float = 0.1,  # Weight for the progress theta
-        Q: np.array[float, float] = np.array([0.2, 0.2]),
-        R: np.array[float, float] = np.array([0.001, 0.001]),
+        Q: np.array[float, float] = np.diag([1.0, 1.0]),
+        R: np.array[float, float] = np.diag([0.001, 0.001, 0.001]),
     ) -> None:
         self.model = model
         self.beta_target = beta_target
@@ -54,6 +54,10 @@ class MPCC:
         self.X = X
         self.U = U
 
+        # cost matrices
+        Q = ca.DM(Q)
+        R = ca.DM(R)
+
         # Parameters for initial conditions
         X0_param = self.opti.parameter(self.model.model_config.nx)
         self.X0_param = X0_param
@@ -80,12 +84,21 @@ class MPCC:
             # yawrate = X[5, k]
             # delta_s = U[0, k]
             # Fx = U[1, k]
-
-            delta_u = self.U[:2, k] - self.U[:2, k-1] if k > 0 else 0
+            delta_u = self.U[0:2, k] - self.U[0:2, k-1] if k > 0 else np.zeros((2, 1))
             delta_v = self.U[2, k] - self.U[2, k-1] if k > 0 else 0
 
+            eps_k = ca.vertcat(eps_c[k], eps_l[k])
+            delta_uv_k = ca.vertcat(delta_u, delta_v)
+
+
             # contouring cost
-            cost += [eps_c[k], eps_l[k]].T @ Q @ [eps_c[k], eps_l[k]] - q_theta * progress + [delta_u, delta_v].T @ R @ [delta_u, delta_v]
+            contouring_cost = eps_k.T @ Q @ eps_k
+            # lag cost
+            progress_cost = q_theta * progress
+            # input cost
+            input_cost = delta_uv_k.T @ R @ delta_uv_k
+
+            cost += contouring_cost - progress_cost + input_cost
 
         # terminal cost only on the 
         
@@ -106,6 +119,8 @@ class MPCC:
             self.opti.subject_to(U[0, k] <= self.delta_max)  # steering angle upper bound
             self.opti.subject_to(U[1, k] >= -self.Fx_max)  # longitudinal force lower bound
             self.opti.subject_to(U[1, k] <= self.Fx_max)   # longitudinal force upper bound
+            self.opti.subject_to(U[2, k] >= 0)  # progress velocity lower bound
+            self.opti.subject_to(U[2, k] <= 10) # progress velocity upper bound
 
         # Solver settings
         opts = {"ipopt.print_level": 0, "print_time": 0}
