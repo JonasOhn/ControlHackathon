@@ -9,15 +9,15 @@ from models.baseModel import BaseModel
 
 """
 Consider the kinematic model only:
-x = (px, py, yaw, vx, vy, yawrate)
-a = (delta, Fx)
+x = (px, py, yaw, vx, vy, yawrate, theta)
+a = (delta, Fx, progvel)
 """
 
 
 @dataclass
 class BicycleXYTireMPCConfig:
-    nx: int = 6
-    nu: int = 2
+    nx: int = 7
+    nu: int = 3
     lf: float = 0.5
     lr: float = 0.5
     Iz: float = 200
@@ -52,11 +52,13 @@ class BicycleXYTireModelMPC(BaseModel):
         vx = x[3]
         vy = x[4]
         yawrate = x[5]
+        theta = x[6]
 
         delta_s = u[0]
         Fx = u[1] * m
         Fx_f = Fx/2
         Fx_r = Fx/2
+        progvel = u[2]
 
         BETA_SMOOTHMAX = 15.0
         VX_MIN_SMOOTHMAX = 1.0
@@ -84,6 +86,7 @@ class BicycleXYTireModelMPC(BaseModel):
             ax_v + vy * yawrate,  # \dot{vx}
             ay_v - vx * yawrate,  # \dot{vy}
             (Fx_f * ca.sin(delta_s) * l_f + Fy_f * ca.cos(delta_s) * l_f - Fy_r * l_r) / Iz,  # \dot{yawrate}
+            progvel  # \dot{theta}
         )
         
         
